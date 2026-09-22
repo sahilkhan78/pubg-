@@ -1,0 +1,147 @@
+import discord
+from discord.ext import commands
+import os
+import random
+import asyncio
+
+# Intents - Developer Portal me teeno ON hone chahiye
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True
+intents.presences = True
+
+bot = commands.Bot(command_prefix="!", intents=intents)
+
+
+@bot.event
+async def on_ready():
+    print(f"{bot.user} online hai!")
+    await bot.change_presence(activity=discord.Game(name="!help | JARVES AI"))
+
+
+@bot.event
+async def on_member_join(member):
+    channel = (
+        discord.utils.get(member.guild.text_channels, name="general")
+        or member.guild.system_channel
+    )
+    if channel:
+        await channel.send(
+            f"Welcome {member.mention}! JARVES ke server me swagat hai!"
+        )
+
+
+# ---------- BASIC ----------
+
+@bot.command()
+async def ping(ctx):
+    await ctx.send(f"Pong! {round(bot.latency * 1000)}ms")
+
+
+@bot.command()
+async def hello(ctx):
+    await ctx.send(f"Namaste {ctx.author.mention}! me JARVES hun!")
+
+
+@bot.command(name="helpme")
+async def helpme(ctx):
+    text = (
+        "**JARVES Commands**\n"
+        "`!ping` - bot ki speed\n"
+        "`!hello` - namaste\n"
+        "`!8ball <sawal>` - kismat bataunga\n"
+        "`!dice` - pasa phenko\n"
+        "`!poll <sawal>` - voting shuru karo\n"
+        "`!kick @user` - kick (mods only)\n"
+        "`!ban @user` - ban (mods only)\n"
+        "`!clear <number>` - messages saaf karo\n"
+        "mujhe **mention** karke bhi baat kar sakte ho!"
+    )
+    await ctx.send(text)
+
+
+# ---------- FUN ----------
+
+@bot.command(name="8ball")
+async def eightball(ctx, *, question=None):
+    responses = [
+        "Haan bilkul!",
+        "Nahi bhdiya",
+        "Pakka!",
+        "Mushkil hai",
+        "100% YES",
+        "Bilkul nahi",
+        "Time aane de",
+        "Haan, par mehnat karni padegi",
+    ]
+    await ctx.send(random.choice(responses))
+
+
+@bot.command()
+async def dice(ctx):
+    await ctx.send(f"{random.randint(1, 6)}")
+
+
+@bot.command()
+async def poll(ctx, *, question):
+    msg = await ctx.send(f"**Poll:** {question}\nHaan / Naa")
+    await msg.add_reaction("👍")
+    await msg.add_reaction("👎")
+
+
+# ---------- MODERATION ----------
+
+@bot.command()
+@commands.has_permissions(kick_members=True)
+async def kick(ctx, member: discord.Member, *, reason="koi reason nahi"):
+    await member.kick(reason=reason)
+    await ctx.send(f"{member.mention} kick ho gaya! Reason: {reason}")
+
+
+@bot.command()
+@commands.has_permissions(ban_members=True)
+async def ban(ctx, member: discord.Member, *, reason="koi reason nahi"):
+    await member.ban(reason=reason)
+    await ctx.send(f"{member.mention} ban ho gaya! Reason: {reason}")
+
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def clear(ctx, amount: int = 5):
+    deleted = await ctx.channel.purge(limit=amount + 1)
+    msg = await ctx.send(f"{len(deleted) - 1} messages saaf!")
+    await asyncio.sleep(3)
+    await msg.delete()
+
+
+# ---------- CHAT (mention karne pe jawab) ----------
+
+@bot.event
+async def on_message(message):
+    if message.author == bot.user:
+        return
+
+    if bot.user.mentioned_in(message):
+        text = message.content.lower()
+        if any(w in text for w in ["hello", "hi", "namaste", "hey"]):
+            reply = f"Namaste {message.author.mention}! kya haal hai?"
+        elif "movie" in text or "film" in text:
+            reply = "Movie dekhni hai? JARVISMOVIEHUB pe free movies hain!"
+        elif any(w in text for w in ["gaana", "song", "music", "gana"]):
+            reply = "Music feature jald aa raha hai!"
+        elif "kaise ho" in text or "how are you" in text:
+            reply = "Ekdam badhiya! tum batao?"
+        else:
+            reply = random.choice(
+                [
+                    f"Haan {message.author.mention}, sun raha hun! bolo kya chahiye?",
+                    "Samajh gaya bhdiya!",
+                    "Badhiya sawal! `!helpme` likh ke mere commands dekh lo",
+                ]
+            )
+        await message.channel.send(reply)
+
+    await bot.process_commands(message)
+
+
+bot.run(os.getenv("DISCORD_TOKEN"))
